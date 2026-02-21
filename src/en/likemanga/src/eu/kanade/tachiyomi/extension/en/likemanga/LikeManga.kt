@@ -27,7 +27,13 @@ class LikeManga : ParsedHttpSource() {
         .build()
 
     override fun headersBuilder() =
-        super.headersBuilder().add("Referer", "$baseUrl/")
+        super.headersBuilder()
+            .add("Referer", "$baseUrl/")
+            .add("Origin", baseUrl)
+            .add(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+            )
 
     // ================= POPULAR =================
 
@@ -35,13 +41,13 @@ class LikeManga : ParsedHttpSource() {
         GET("$baseUrl/manga/?m_orderby=views&paged=$page", headers)
 
     override fun popularMangaSelector() =
-        "div.page-item-detail"
+        "div.c-tabs-item__content"
 
     override fun popularMangaFromElement(element: Element) =
         mangaFromElement(element)
 
     override fun popularMangaNextPageSelector() =
-        "div.pagination a.next"
+        "div.nav-previous a"
 
     // ================= LATEST =================
 
@@ -49,13 +55,13 @@ class LikeManga : ParsedHttpSource() {
         GET("$baseUrl/manga/?m_orderby=latest&paged=$page", headers)
 
     override fun latestUpdatesSelector() =
-        "div.page-item-detail"
+        "div.c-tabs-item__content"
 
     override fun latestUpdatesFromElement(element: Element) =
         mangaFromElement(element)
 
     override fun latestUpdatesNextPageSelector() =
-        "div.pagination a.next"
+        "div.nav-previous a"
 
     // ================= SEARCH =================
 
@@ -73,23 +79,28 @@ class LikeManga : ParsedHttpSource() {
     }
 
     override fun searchMangaSelector() =
-        "div.page-item-detail"
+        "div.c-tabs-item__content"
 
     override fun searchMangaFromElement(element: Element) =
         mangaFromElement(element)
 
     override fun searchMangaNextPageSelector() =
-        "div.pagination a.next"
+        "div.nav-previous a"
 
     // ================= CARD PARSER =================
 
     private fun mangaFromElement(element: Element) =
         SManga.create().apply {
-            val link = element.selectFirst("h3 a")!!
+            val link = element.selectFirst("h3.h5 a")!!
             setUrlWithoutDomain(link.attr("href"))
             title = link.text()
+
+            val img = element.selectFirst("img")
             thumbnail_url =
-                element.selectFirst("img")?.absUrl("src") ?: ""
+                img?.absUrl("data-src")
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: img?.absUrl("src")
+                    ?: ""
         }
 
     // ================= DETAILS =================
@@ -122,8 +133,10 @@ class LikeManga : ParsedHttpSource() {
             status == null -> SManga.UNKNOWN
             status.contains("Completed", true) ->
                 SManga.COMPLETED
+
             status.contains("OnGoing", true) ->
                 SManga.ONGOING
+
             else -> SManga.UNKNOWN
         }
 
