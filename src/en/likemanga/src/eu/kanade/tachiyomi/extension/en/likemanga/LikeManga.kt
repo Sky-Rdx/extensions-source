@@ -22,8 +22,9 @@ class LikeManga : ParsedHttpSource() {
     override val lang = "en"
     override val supportsLatest = true
 
-    override val client =
-        network.cloudflareClient.newBuilder().rateLimit(1, 2).build()
+    override val client = network.cloudflareClient.newBuilder()
+        .rateLimit(1, 2)
+        .build()
 
     override fun headersBuilder() =
         super.headersBuilder().add("Referer", "$baseUrl/")
@@ -35,123 +36,80 @@ class LikeManga : ParsedHttpSource() {
 
     override fun popularMangaSelector() = "div.page-item-detail"
 
-    override fun popularMangaFromElement(element: Element) =
-        mangaFromElement(element)
+    override fun popularMangaFromElement(element: Element) = mangaFromElement(element)
 
-    override fun popularMangaNextPageSelector() =
-        "div.pagination a.next"
+    override fun popularMangaNextPageSelector() = "div.pagination a.next"
 
-    override fun latestUpdatesRequest(page: Int) =
-        popularMangaRequest(page)
+    override fun latestUpdatesRequest(page: Int) = popularMangaRequest(page)
 
-    override fun latestUpdatesSelector() =
-        popularMangaSelector()
+    override fun latestUpdatesSelector() = popularMangaSelector()
 
-    override fun latestUpdatesFromElement(element: Element) =
-        mangaFromElement(element)
+    override fun latestUpdatesFromElement(element: Element) = mangaFromElement(element)
 
-    override fun latestUpdatesNextPageSelector() =
-        popularMangaNextPageSelector()
+    override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
 
-    override fun searchMangaRequest(
-        page: Int,
-        query: String,
-        filters: FilterList,
-    ): Request {
-        val url =
-            if (query.isNotBlank()) {
-                "$baseUrl/?s=${query.trim()}&post_type=wp-manga"
-            } else {
-                if (page == 1) baseUrl else "$baseUrl/page/$page/"
-            }
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        val url = if (query.isNotBlank()) {
+            "$baseUrl/?s=${query.trim()}&post_type=wp-manga"
+        } else {
+            if (page == 1) baseUrl else "$baseUrl/page/$page/"
+        }
         return GET(url, headers)
     }
 
-    override fun searchMangaSelector() =
-        popularMangaSelector()
+    override fun searchMangaSelector() = popularMangaSelector()
 
-    override fun searchMangaFromElement(element: Element) =
-        mangaFromElement(element)
+    override fun searchMangaFromElement(element: Element) = mangaFromElement(element)
 
-    override fun searchMangaNextPageSelector() =
-        popularMangaNextPageSelector()
+    override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
 
-    private fun mangaFromElement(element: Element) =
-        SManga.create().apply {
-            val link = element.selectFirst("a")!!
-            setUrlWithoutDomain(link.attr("href"))
-            title = link.text()
-            thumbnail_url = element.selectFirst("img")?.absUrl("src")
-        }
+    private fun mangaFromElement(element: Element) = SManga.create().apply {
+        val link = element.selectFirst("a")!!
+        setUrlWithoutDomain(link.attr("href"))
+        title = link.text()
+        thumbnail_url = element.selectFirst("img")?.absUrl("src")
+    }
 
-    override fun mangaDetailsParse(document: Document) =
-        SManga.create().apply {
-            title = document.selectFirst(".post-title h1")?.text()
-            thumbnail_url =
-                document.selectFirst(".summary_image img")?.absUrl("src")
-            description =
-                document.selectFirst(".summary__content")?.text()
-            genre =
-                document.select(".genres-content a")
-                    .joinToString { it.text() }
-            author =
-                document.selectFirst(".author-content a")?.text()
-            status =
-                parseStatus(
-                    document.selectFirst(
-                        ".post-status .summary-content",
-                    )?.text(),
-                )
-        }
+    override fun mangaDetailsParse(document: Document) = SManga.create().apply {
+        title = document.selectFirst(".post-title h1")?.text()
+        thumbnail_url = document.selectFirst(".summary_image img")?.absUrl("src")
+        description = document.selectFirst(".summary__content")?.text()
+        genre = document.select(".genres-content a").joinToString { it.text() }
+        author = document.selectFirst(".author-content a")?.text()
+        status = parseStatus(document.selectFirst(".post-status .summary-content")?.text())
+    }
 
-    private fun parseStatus(status: String?): Int =
-        when {
-            status == null -> SManga.UNKNOWN
-            status.contains("Completed", true) -> SManga.COMPLETED
-            status.contains("OnGoing", true) -> SManga.ONGOING
-            else -> SManga.UNKNOWN
-        }
+    private fun parseStatus(status: String?): Int = when {
+        status == null -> SManga.UNKNOWN
+        status.contains("Completed", true) -> SManga.COMPLETED
+        status.contains("OnGoing", true) -> SManga.ONGOING
+        else -> SManga.UNKNOWN
+    }
 
-    override fun chapterListSelector() =
-        "li.wp-manga-chapter"
+    override fun chapterListSelector() = "li.wp-manga-chapter"
 
-    override fun chapterFromElement(element: Element) =
-        SChapter.create().apply {
-            setUrlWithoutDomain(
-                element.selectFirst("a")!!.attr("href"),
-            )
-            name = element.selectFirst("a")!!.text()
-            date_upload =
-                parseDate(
-                    element.selectFirst(
-                        ".chapter-release-date",
-                    )?.text(),
-                )
-        }
+    override fun chapterFromElement(element: Element) = SChapter.create().apply {
+        setUrlWithoutDomain(element.selectFirst("a")!!.attr("href"))
+        name = element.selectFirst("a")!!.text()
+        date_upload = parseDate(element.selectFirst(".chapter-release-date")?.text())
+    }
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.use { it.asJsoup() }
-        return document
-            .select(chapterListSelector())
-            .map(::chapterFromElement)
+        return document.select(chapterListSelector()).map(::chapterFromElement)
     }
 
-    private fun parseDate(date: String?): Long =
-        try {
-            SimpleDateFormat(
-                "MMMM dd, yyyy",
-                Locale.ENGLISH,
-            ).parse(date ?: "")?.time ?: 0L
-        } catch (_: Exception) {
-            0L
-        }
+    private fun parseDate(date: String?): Long = try {
+        SimpleDateFormat("MMMM dd, yyyy", Locale.ENGLISH)
+            .parse(date ?: "")?.time ?: 0L
+    } catch (_: Exception) {
+        0L
+    }
 
     override fun pageListParse(document: Document): List<Page> =
-        document
-            .select("div.reading-content img")
-            .mapIndexed { index, img ->
-                Page(index, "", img.absUrl("src"))
-            }
+        document.select("div.reading-content img").mapIndexed { index, img ->
+            Page(index, "", img.absUrl("src"))
+        }
 
     override fun imageUrlParse(document: Document): String =
         throw UnsupportedOperationException()
