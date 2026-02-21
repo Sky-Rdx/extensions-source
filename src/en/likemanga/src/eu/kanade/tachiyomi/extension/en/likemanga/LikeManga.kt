@@ -167,5 +167,9 @@ class LikeManga : ParsedHttpSource() {
             }
 
     override fun imageUrlParse(document: Document): String =
-        throw UnsupportedOperationException()
+    throw UnsupportedOperationException()
+
+companion object {
+    const val URL_SEARCH_PREFIX = "slug:"
+}
 }
