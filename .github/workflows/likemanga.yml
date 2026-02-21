@@ -20,8 +20,11 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Grant permission to gradlew
+      - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+      - name: Apply Spotless Formatting
+        run: ./gradlew spotlessApply
 
       - name: Build LikeManga Debug APK
         run: ./gradlew :src:en:likemanga:assembleDebug
@@ -29,5 +32,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: LikeManga-APK
+          name: LikeManga-Debug-APK
           path: src/en/likemanga/build/outputs/apk/debug/*.apk
