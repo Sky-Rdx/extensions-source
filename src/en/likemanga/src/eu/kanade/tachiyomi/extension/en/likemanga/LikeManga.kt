@@ -29,12 +29,15 @@ class LikeManga : ParsedHttpSource() {
     override fun headersBuilder() =
         super.headersBuilder().add("Referer", "$baseUrl/")
 
+    // ================= POPULAR =================
+
     override fun popularMangaRequest(page: Int): Request {
-        val url = if (page == 1) baseUrl else "$baseUrl/page/$page/"
+        val url = "$baseUrl/page/$page/"
         return GET(url, headers)
     }
 
-    override fun popularMangaSelector() = "div.page-item-detail"
+    override fun popularMangaSelector() =
+        "div.c-tabs-item__content"
 
     override fun popularMangaFromElement(element: Element) =
         mangaFromElement(element)
@@ -42,17 +45,21 @@ class LikeManga : ParsedHttpSource() {
     override fun popularMangaNextPageSelector() =
         "div.pagination a.next"
 
-    override fun latestUpdatesRequest(page: Int) =
-        popularMangaRequest(page)
+    // ================= LATEST =================
+
+    override fun latestUpdatesRequest(page: Int): Request =
+        GET("$baseUrl/page/$page/", headers)
 
     override fun latestUpdatesSelector() =
-        popularMangaSelector()
+        "div.c-tabs-item__content"
 
     override fun latestUpdatesFromElement(element: Element) =
         mangaFromElement(element)
 
     override fun latestUpdatesNextPageSelector() =
-        popularMangaNextPageSelector()
+        "div.pagination a.next"
+
+    // ================= SEARCH =================
 
     override fun searchMangaRequest(
         page: Int,
@@ -60,36 +67,39 @@ class LikeManga : ParsedHttpSource() {
         filters: FilterList,
     ): Request {
         val url = if (query.isNotBlank()) {
-            "$baseUrl/?s=${query.trim()}&post_type=wp-manga"
+            "$baseUrl/page/$page/?s=${query.trim()}&post_type=wp-manga"
         } else {
-            if (page == 1) baseUrl else "$baseUrl/page/$page/"
+            "$baseUrl/page/$page/"
         }
         return GET(url, headers)
     }
 
     override fun searchMangaSelector() =
-        popularMangaSelector()
+        "div.c-tabs-item__content"
 
     override fun searchMangaFromElement(element: Element) =
         mangaFromElement(element)
 
     override fun searchMangaNextPageSelector() =
-        popularMangaNextPageSelector()
+        "div.pagination a.next"
+
+    // ================= COMMON CARD =================
 
     private fun mangaFromElement(element: Element) =
         SManga.create().apply {
-            val link = element.selectFirst("a")!!
+            val link = element.selectFirst("h3 a")!!
             setUrlWithoutDomain(link.attr("href"))
-            title = link.attr("title")
+            title = link.text()
             thumbnail_url =
                 element.selectFirst("img")?.absUrl("src") ?: ""
         }
 
+    // ================= DETAILS =================
+
     override fun mangaDetailsParse(document: Document) =
         SManga.create().apply {
             title =
-                document.selectFirst(".post-title h1")?.text()
-                    ?: ""
+                document.selectFirst(".post-title h1")?.text() ?: ""
             thumbnail_url =
                 document.selectFirst(".summary_image img")
                     ?.absUrl("src") ?: ""
@@ -121,16 +131,16 @@ class LikeManga : ParsedHttpSource() {
             else -> SManga.UNKNOWN
         }
 
+    // ================= CHAPTERS =================
+
     override fun chapterListSelector() =
         "li.wp-manga-chapter"
 
     override fun chapterFromElement(element: Element) =
         SChapter.create().apply {
-            setUrlWithoutDomain(
-                element.selectFirst("a")!!.attr("href"),
-            )
-            name =
-                element.selectFirst("a")!!.text()
+            val link = element.selectFirst("a")!!
+            setUrlWithoutDomain(link.attr("href"))
+            name = link.text()
             date_upload = parseDate(
                 element.selectFirst(".chapter-release-date")
                     ?.text(),
@@ -155,9 +165,9 @@ class LikeManga : ParsedHttpSource() {
             0L
         }
 
-    override fun pageListParse(
-        document: Document,
-    ): List<Page> =
+    // ================= PAGES =================
+
+    override fun pageListParse(document: Document): List<Page> =
         document.select("div.reading-content img")
             .mapIndexed { index, img ->
                 Page(index, "", img.absUrl("src"))
