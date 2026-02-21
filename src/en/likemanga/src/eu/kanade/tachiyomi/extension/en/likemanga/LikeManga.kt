@@ -31,13 +31,11 @@ class LikeManga : ParsedHttpSource() {
 
     // ================= POPULAR =================
 
-    override fun popularMangaRequest(page: Int): Request {
-        val url = "$baseUrl/page/$page/"
-        return GET(url, headers)
-    }
+    override fun popularMangaRequest(page: Int): Request =
+        GET("$baseUrl/manga/?m_orderby=views&paged=$page", headers)
 
     override fun popularMangaSelector() =
-        "div.c-tabs-item__content"
+        "div.page-item-detail"
 
     override fun popularMangaFromElement(element: Element) =
         mangaFromElement(element)
@@ -48,10 +46,10 @@ class LikeManga : ParsedHttpSource() {
     // ================= LATEST =================
 
     override fun latestUpdatesRequest(page: Int): Request =
-        GET("$baseUrl/page/$page/", headers)
+        GET("$baseUrl/manga/?m_orderby=latest&paged=$page", headers)
 
     override fun latestUpdatesSelector() =
-        "div.c-tabs-item__content"
+        "div.page-item-detail"
 
     override fun latestUpdatesFromElement(element: Element) =
         mangaFromElement(element)
@@ -69,13 +67,13 @@ class LikeManga : ParsedHttpSource() {
         val url = if (query.isNotBlank()) {
             "$baseUrl/page/$page/?s=${query.trim()}&post_type=wp-manga"
         } else {
-            "$baseUrl/page/$page/"
+            "$baseUrl/manga/?paged=$page"
         }
         return GET(url, headers)
     }
 
     override fun searchMangaSelector() =
-        "div.c-tabs-item__content"
+        "div.page-item-detail"
 
     override fun searchMangaFromElement(element: Element) =
         mangaFromElement(element)
@@ -83,7 +81,7 @@ class LikeManga : ParsedHttpSource() {
     override fun searchMangaNextPageSelector() =
         "div.pagination a.next"
 
-    // ================= COMMON CARD =================
+    // ================= CARD PARSER =================
 
     private fun mangaFromElement(element: Element) =
         SManga.create().apply {
@@ -124,10 +122,8 @@ class LikeManga : ParsedHttpSource() {
             status == null -> SManga.UNKNOWN
             status.contains("Completed", true) ->
                 SManga.COMPLETED
-
             status.contains("OnGoing", true) ->
                 SManga.ONGOING
-
             else -> SManga.UNKNOWN
         }
 
@@ -147,9 +143,7 @@ class LikeManga : ParsedHttpSource() {
             )
         }
 
-    override fun chapterListParse(
-        response: Response,
-    ): List<SChapter> {
+    override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.use { it.asJsoup() }
         return document.select(chapterListSelector())
             .map(::chapterFromElement)
