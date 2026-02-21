@@ -23,11 +23,11 @@ jobs:
       - name: Grant permission to gradlew
         run: chmod +x gradlew
 
-      - name: Build LikeManga extension (unsigned)
-        run: ./gradlew :src:en:likemanga:assembleRelease -x validateSigningRelease
+      - name: Build LikeManga Debug APK
+        run: ./gradlew :src:en:likemanga:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: LikeManga-APK
-          path: src/en/likemanga/build/outputs/apk/release/*.apk
+          path: src/en/likemanga/build/outputs/apk/debug/*.apk
